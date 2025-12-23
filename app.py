@@ -13,10 +13,20 @@ from keras.applications.mobilenet_v2 import preprocess_input
 import os
 from datetime import datetime
 import base64
+import os
 import urllib.request
 
 from werkzeug.utils import secure_filename
 import os
+
+
+
+
+
+
+
+app = Flask(__name__)
+
 
 @app.route('/detect_image', methods=['POST'])
 def detect_image():
@@ -37,6 +47,7 @@ def detect_image():
     _, buffer = cv2.imencode('.jpg', result_frame)
     
     return buffer.tobytes(), 200, {'Content-Type': 'image/jpeg'}
+
 
 # Google Drive direct download links (replace with your links)
 MODEL_URLS = {
@@ -61,8 +72,6 @@ def download_models():
 print("Checking models...")
 download_models()
 print("Models ready!")
-
-app = Flask(__name__)
 
 # ============ CONFIGURATION ============
 MODEL_PATH = "models/mask_detector.keras"
