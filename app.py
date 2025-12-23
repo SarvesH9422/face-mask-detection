@@ -9,6 +9,9 @@ from keras.preprocessing.image import img_to_array
 from keras.applications.mobilenet_v2 import preprocess_input
 import os
 from datetime import datetime
+import urllib.request
+
+from werkzeug.utils import secure_filename
 
 # Create Flask app
 app = Flask(__name__)
