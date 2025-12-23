@@ -14,6 +14,30 @@ import os
 from datetime import datetime
 import base64
 import urllib.request
+
+from werkzeug.utils import secure_filename
+import os
+
+@app.route('/detect_image', methods=['POST'])
+def detect_image():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+    
+    file = request.files['image']
+    
+    # Read image
+    img_bytes = file.read()
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    # Detect masks
+    result_frame, detections = detect_and_predict_mask(frame, face_net, mask_net)
+    
+    # Encode result
+    _, buffer = cv2.imencode('.jpg', result_frame)
+    
+    return buffer.tobytes(), 200, {'Content-Type': 'image/jpeg'}
+
 # Google Drive direct download links (replace with your links)
 MODEL_URLS = {
     'models/mask_detector.keras': 'https://drive.google.com/uc?export=download&id=1AbZChTE0LRV8YK_P_LB6L07-Dui2tFbF',
