@@ -477,54 +477,191 @@
     </script>
 
 <script>
-let videoStream = null;
-let canvas = document.createElement('canvas');
-let ctx = canvas.getContext('2d');
+        // Global variables
+        let videoElement = document.getElementById('videoElement');
+        let canvasElement = document.getElementById('canvasElement');
+        let ctx = canvasElement.getContext('2d');
+        let stream = null;
+        let detectionInterval = null;
+        let detectionCount = 0;
 
-async function startCamera() {
-    try {
-        // Access USER'S webcam in BROWSER
-        videoStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { width: 640, height: 480 } 
-        });
-        
-        const videoElement = document.getElementById('videoFeed');
-        videoElement.srcObject = videoStream;
-        videoElement.play();
-        
-        // Send frames to server for detection
-        startDetection();
-        
-        showToast('✅ Camera started successfully');
-    } catch (error) {
-        showToast('❌ Camera access denied: ' + error.message);
-    }
-}
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
 
-function startDetection() {
-    setInterval(() => {
-        // Capture frame from video
-        canvas.width = videoElement.videoWidth;
-        canvas.height = videoElement.videoHeight;
-        ctx.drawImage(videoElement, 0, 0);
-        
-        // Convert to base64
-        const frameData = canvas.toDataURL('image/jpeg');
-        
-        // Send to server for detection
-        fetch('/detect_frame', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ frame: frameData })
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Draw bounding boxes on canvas
-            drawDetections(data.detections);
-        });
-    }, 100); // Process 10 frames per second
-}
-</script>
+        async function startCamera() {
+            try {
+                // Request camera access
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    } 
+                });
+                
+                // Set video source
+                videoElement.srcObject = stream;
+                
+                // Wait for video to load metadata
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    
+                    // Setup canvas
+                    canvasElement.width = videoElement.videoWidth;
+                    canvasElement.height = videoElement.videoHeight;
+                    
+                    // Show video, hide placeholder
+                    videoElement.style.display = 'block';
+                    document.getElementById('placeholder').style.display = 'none';
+                    
+                    // Update UI
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('captureBtn').disabled = false;
+                    document.getElementById('cameraStatus').textContent = 'Active';
+                    
+                    showToast('✅ Camera started successfully');
+                    
+                    // Start detection loop
+                    startDetection();
+                };
+                
+            } catch (error) {
+                console.error('Camera error:', error);
+                showToast('❌ Camera access denied: ' + error.message);
+            }
+        }
+
+        function stopCamera() {
+            // Stop detection
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            // Stop video stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // Reset video
+            videoElement.srcObject = null;
+            videoElement.style.display = 'none';
+            document.getElementById('placeholder').style.display = 'block';
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // Update UI
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('captureBtn').disabled = true;
+            document.getElementById('cameraStatus').textContent = 'Inactive';
+            
+            showToast('⏹ Camera stopped');
+        }
+
+        function startDetection() {
+            detectionInterval = setInterval(async () => {
+                if (!videoElement.paused && !videoElement.ended) {
+                    // Draw current frame to canvas
+                    ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                    
+                    // Get frame as base64
+                    const frameData = canvasElement.toDataURL('image/jpeg', 0.8);
+                    
+                    // Send to server for detection
+                    try {
+                        const response = await fetch('/detect_frame', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ frame: frameData })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.status === 'success' && data.detections) {
+                            // Clear canvas
+                            ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                            
+                            // Draw detections
+                            drawDetections(data.detections);
+                            
+                            // Update count
+                            detectionCount = data.detections.length;
+                            document.getElementById('detectionCount').textContent = detectionCount;
+                        }
+                    } catch (error) {
+                        console.error('Detection error:', error);
+                    }
+                }
+            }, 200); // 5 FPS (adjust as needed)
+        }
+
+        function drawDetections(detections) {
+            detections.forEach(det => {
+                const color = det.label === 'Mask' ? '#10b981' : '#ef4444';
+                const box = det.box;
+                
+                // Draw rectangle
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(box[0], box[1], box[2] - box[0], box[3] - box[1]);
+                
+                // Draw label
+                const label = `${det.label}: ${det.confidence.toFixed(1)}%`;
+                ctx.fillStyle = color;
+                ctx.font = 'bold 16px Arial';
+                
+                // Background for text
+                const textWidth = ctx.measureText(label).width;
+                ctx.fillRect(box[0], box[1] - 25, textWidth + 10, 25);
+                
+                // Text
+                ctx.fillStyle = 'white';
+                ctx.fillText(label, box[0] + 5, box[1] - 7);
+            });
+        }
+
+        async function captureImage() {
+            try {
+                // Draw current frame with detections
+                const captureCanvas = document.createElement('canvas');
+                captureCanvas.width = canvasElement.width;
+                captureCanvas.height = canvasElement.height;
+                const captureCtx = captureCanvas.getContext('2d');
+                
+                // Copy current canvas (with detections)
+                captureCtx.drawImage(canvasElement, 0, 0);
+                
+                // Convert to blob
+                captureCanvas.toBlob(async (blob) => {
+                    const formData = new FormData();
+                    formData.append('image', blob, 'capture.jpg');
+                    
+                    const response = await fetch('/detect_image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        showToast('📸 Image captured: ' + data.filename);
+                    }
+                }, 'image/jpeg', 0.9);
+                
+            } catch (error) {
+                console.error('Capture error:', error);
+                showToast('❌ Failed to capture image');
+            }
+        }
+    </script>
 
     
 </body>
