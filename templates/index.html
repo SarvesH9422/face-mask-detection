@@ -475,5 +475,57 @@
         // Refresh captures every 10 seconds
         setInterval(loadCaptures, 10000);
     </script>
+
+<script>
+let videoStream = null;
+let canvas = document.createElement('canvas');
+let ctx = canvas.getContext('2d');
+
+async function startCamera() {
+    try {
+        // Access USER'S webcam in BROWSER
+        videoStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: 640, height: 480 } 
+        });
+        
+        const videoElement = document.getElementById('videoFeed');
+        videoElement.srcObject = videoStream;
+        videoElement.play();
+        
+        // Send frames to server for detection
+        startDetection();
+        
+        showToast('✅ Camera started successfully');
+    } catch (error) {
+        showToast('❌ Camera access denied: ' + error.message);
+    }
+}
+
+function startDetection() {
+    setInterval(() => {
+        // Capture frame from video
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        ctx.drawImage(videoElement, 0, 0);
+        
+        // Convert to base64
+        const frameData = canvas.toDataURL('image/jpeg');
+        
+        // Send to server for detection
+        fetch('/detect_frame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ frame: frameData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Draw bounding boxes on canvas
+            drawDetections(data.detections);
+        });
+    }, 100); // Process 10 frames per second
+}
+</script>
+
+    
 </body>
 </html>
