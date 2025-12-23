@@ -13,6 +13,29 @@ from keras.applications.mobilenet_v2 import preprocess_input
 import os
 from datetime import datetime
 import base64
+# Google Drive direct download links (replace with your links)
+MODEL_URLS = {
+    'models/mask_detector.keras': 'https://drive.google.com/uc?export=download&id=1AbZChTE0LRV8YK_P_LB6L07-Dui2tFbF',
+    'face_detector/res10_300x300_ssd_iter_140000.caffemodel': 'https://drive.google.com/uc?export=download&id=1aU6Ll0-NKAtDhaPWebI47BQpBIAuD6ud',
+    'face_detector/deploy.prototxt': 'https://drive.google.com/uc?export=download&id=1X-Ky_V1UdXpAq9-zTqm8qT_o4g-2IyZW'
+}
+
+def download_models():
+    """Download models on first run"""
+    for filepath, url in MODEL_URLS.items():
+        if not os.path.exists(filepath):
+            print(f"[INFO] Downloading {filepath}...")
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            try:
+                urllib.request.urlretrieve(url, filepath)
+                print(f"[SUCCESS] Downloaded {filepath}")
+            except Exception as e:
+                print(f"[ERROR] Failed to download {filepath}: {e}")
+
+# Download models before starting app
+print("Checking models...")
+download_models()
+print("Models ready!")
 
 app = Flask(__name__)
 
