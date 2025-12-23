@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Mask Detection - AI System</title>
+    <title>Face Mask Detection - Snapshot Mode</title>
     <style>
         * {
             margin: 0;
@@ -35,17 +35,30 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
         .main-grid {
             display: grid;
-            grid-template-columns: 1fr 350px;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
         }
 
-        .video-section {
+        .card {
             background: white;
             border-radius: 15px;
             padding: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #333;
+            text-align: center;
         }
 
         .video-container {
@@ -54,6 +67,7 @@
             border-radius: 10px;
             overflow: hidden;
             aspect-ratio: 4/3;
+            margin-bottom: 15px;
         }
 
         #videoElement {
@@ -63,12 +77,11 @@
             display: none;
         }
 
-        #canvasElement {
-            position: absolute;
-            top: 0;
-            left: 0;
+        #resultImage {
             width: 100%;
             height: 100%;
+            object-fit: contain;
+            display: none;
         }
 
         .placeholder {
@@ -83,13 +96,12 @@
 
         .controls {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 10px;
-            margin-top: 20px;
         }
 
         .btn {
-            padding: 12px 20px;
+            padding: 15px;
             border: none;
             border-radius: 8px;
             font-size: 1rem;
@@ -101,6 +113,11 @@
         .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .btn-primary {
@@ -118,42 +135,74 @@
             color: white;
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-
-        .card-title {
-            font-size: 1.3rem;
-            font-weight: 700;
-            margin-bottom: 15px;
-            color: #333;
+        .btn-success {
+            background: #8b5cf6;
+            color: white;
         }
 
         .stats-grid {
             display: grid;
             gap: 12px;
+            margin-top: 15px;
         }
 
         .stat-item {
             display: flex;
             justify-content: space-between;
-            padding: 10px;
+            align-items: center;
+            padding: 12px;
             background: #f3f4f6;
             border-radius: 8px;
+        }
+
+        .detection-result {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .detection-result.mask {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+        }
+
+        .detection-result.no-mask {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
+
+        .detection-result h3 {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .detection-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .detection-list li {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .toast {
@@ -166,6 +215,7 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             z-index: 1000;
             display: none;
+            min-width: 200px;
         }
 
         .toast.show {
@@ -189,52 +239,61 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>🎭 AI Face Mask Detection System</h1>
-            <p>Real-time detection using Deep Learning & Computer Vision</p>
+            <h1>🎭 AI Face Mask Detection</h1>
+            <p>📸 Snapshot Mode - Fast & Accurate</p>
         </div>
 
         <!-- Main Grid -->
         <div class="main-grid">
-            <!-- Video Section -->
-            <div class="video-section">
+            <!-- Camera Section -->
+            <div class="card">
+                <h3 class="card-title">📷 Camera</h3>
+                
                 <div class="video-container">
                     <video id="videoElement" autoplay playsinline></video>
-                    <canvas id="canvasElement"></canvas>
                     <div class="placeholder" id="placeholder">
-                        <p>📷 Click "Start Camera" to begin detection</p>
+                        <p>📷 Click "Start Camera"</p>
                     </div>
                 </div>
 
-                <!-- Controls -->
                 <div class="controls">
-                    <button class="btn btn-primary" id="startBtn" onclick="handleStartCamera()">
+                    <button class="btn btn-primary" id="startBtn" onclick="startCamera()">
                         ▶ Start Camera
                     </button>
-                    <button class="btn btn-danger" id="stopBtn" onclick="handleStopCamera()" disabled>
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopCamera()" disabled>
                         ⏹ Stop Camera
                     </button>
-                    <button class="btn btn-info" id="captureBtn" onclick="handleCapture()" disabled>
-                        📸 Capture
+                    <button class="btn btn-success" id="detectBtn" onclick="captureAndDetect()" disabled style="grid-column: 1 / -1;">
+                        📸 Capture & Detect Mask
                     </button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span>📹 Camera</span>
+                        <span id="cameraStatus">⏸️ Inactive</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>⚡ Status</span>
+                        <span id="detectionStatus">Ready</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <!-- Status Card -->
-                <div class="card">
-                    <h3 class="card-title">Status</h3>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span>Camera</span>
-                            <span id="cameraStatus">⏸️ Inactive</span>
-                        </div>
-                        <div class="stat-item">
-                            <span>Detections</span>
-                            <span id="detectionCount">0</span>
-                        </div>
+            <!-- Results Section -->
+            <div class="card">
+                <h3 class="card-title">🎯 Detection Results</h3>
+                
+                <div class="video-container">
+                    <img id="resultImage" alt="Detection Result">
+                    <div class="placeholder" id="resultPlaceholder">
+                        <p>📊 Results will appear here</p>
                     </div>
                 </div>
+
+                <div class="spinner" id="spinner"></div>
+
+                <div id="detectionResults"></div>
             </div>
         </div>
     </div>
@@ -244,31 +303,28 @@
 
     <script>
         // ========================================
-        // GLOBAL VARIABLES - DECLARE ALL AT TOP
+        // GLOBAL STATE
         // ========================================
-        
         var cameraState = {
             stream: null,
-            detectionInterval: null,
-            isActive: false,
-            detectionCount: 0
+            isActive: false
         };
 
-        // Get DOM elements
         var videoElement = document.getElementById('videoElement');
-        var canvasElement = document.getElementById('canvasElement');
-        var ctx = canvasElement.getContext('2d');
+        var resultImage = document.getElementById('resultImage');
         var placeholder = document.getElementById('placeholder');
+        var resultPlaceholder = document.getElementById('resultPlaceholder');
         var startBtn = document.getElementById('startBtn');
         var stopBtn = document.getElementById('stopBtn');
-        var captureBtn = document.getElementById('captureBtn');
+        var detectBtn = document.getElementById('detectBtn');
         var cameraStatus = document.getElementById('cameraStatus');
-        var detectionCountEl = document.getElementById('detectionCount');
+        var detectionStatus = document.getElementById('detectionStatus');
+        var spinner = document.getElementById('spinner');
+        var detectionResults = document.getElementById('detectionResults');
 
         // ========================================
         // UTILITY FUNCTIONS
         // ========================================
-        
         function showToast(message, duration) {
             duration = duration || 3000;
             var toast = document.getElementById('toast');
@@ -286,26 +342,10 @@
         // ========================================
         // CAMERA FUNCTIONS
         // ========================================
-        
-        function handleStartCamera() {
-            log('Start camera button clicked');
-            
-            if (cameraState.isActive) {
-                showToast('⚠️ Camera is already active');
-                return;
-            }
-
-            startBtn.disabled = true;
-            startBtn.textContent = '⏳ Starting...';
-            
-            startCameraAsync();
-        }
-
-        async function startCameraAsync() {
+        async function startCamera() {
             try {
-                log('Requesting camera access...');
+                log('Starting camera...');
                 
-                // Request camera permission
                 var mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         width: { ideal: 640 },
@@ -316,156 +356,111 @@
                 
                 log('✅ Camera access granted');
                 
-                // Store stream in state object
                 cameraState.stream = mediaStream;
-                
-                // Set video source
                 videoElement.srcObject = mediaStream;
                 
-                // Wait for video to load
                 videoElement.onloadedmetadata = function() {
-                    log('Video metadata loaded');
-                    
                     videoElement.play().then(function() {
-                        log('✅ Video playing');
+                        log('✅ Camera started');
                         
-                        // Setup canvas
-                        canvasElement.width = videoElement.videoWidth;
-                        canvasElement.height = videoElement.videoHeight;
-                        
-                        log('Canvas size: ' + canvasElement.width + 'x' + canvasElement.height);
-                        
-                        // Update UI
                         videoElement.style.display = 'block';
                         placeholder.style.display = 'none';
+                        
                         startBtn.disabled = true;
-                        startBtn.textContent = '▶ Start Camera';
                         stopBtn.disabled = false;
-                        captureBtn.disabled = false;
+                        detectBtn.disabled = false;
                         cameraStatus.textContent = '✅ Active';
+                        detectionStatus.textContent = 'Ready to capture';
                         
                         cameraState.isActive = true;
-                        
-                        showToast('✅ Camera started successfully');
-                        
-                        // Start detection
-                        startDetectionLoop();
+                        showToast('✅ Camera started!');
                         
                     }).catch(function(err) {
-                        log('❌ Video play error: ' + err.message);
+                        log('❌ Play error: ' + err.message);
                         showToast('❌ Failed to play video');
-                        cleanupCamera();
                     });
                 };
                 
             } catch (error) {
-                log('❌ Camera error: ' + error.name + ' - ' + error.message);
+                log('❌ Camera error: ' + error.message);
                 
                 var errorMsg = '';
                 if (error.name === 'NotAllowedError') {
-                    errorMsg = 'Camera permission denied. Please allow camera access and try again.';
+                    errorMsg = 'Camera permission denied';
                 } else if (error.name === 'NotFoundError') {
-                    errorMsg = 'No camera found on this device.';
-                } else if (error.name === 'NotReadableError') {
-                    errorMsg = 'Camera is being used by another application.';
+                    errorMsg = 'No camera found';
                 } else {
-                    errorMsg = error.message || 'Failed to access camera';
+                    errorMsg = 'Camera access failed';
                 }
                 
-                showToast('❌ ' + errorMsg, 5000);
-                cleanupCamera();
+                showToast('❌ ' + errorMsg);
             }
         }
 
-        function handleStopCamera() {
-            log('Stop camera button clicked');
-            stopCameraAndCleanup();
-        }
-
-        function stopCameraAndCleanup() {
+        function stopCamera() {
             log('Stopping camera...');
             
-            // Stop detection loop
-            if (cameraState.detectionInterval) {
-                clearInterval(cameraState.detectionInterval);
-                cameraState.detectionInterval = null;
-            }
-            
-            // Stop media stream
             if (cameraState.stream) {
                 cameraState.stream.getTracks().forEach(function(track) {
                     track.stop();
-                    log('Stopped track: ' + track.kind);
                 });
                 cameraState.stream = null;
             }
             
-            // Reset video
             videoElement.srcObject = null;
             videoElement.style.display = 'none';
             placeholder.style.display = 'block';
             
-            // Clear canvas
-            ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
-            // Update UI
             startBtn.disabled = false;
-            startBtn.textContent = '▶ Start Camera';
             stopBtn.disabled = true;
-            captureBtn.disabled = true;
+            detectBtn.disabled = true;
             cameraStatus.textContent = '⏸️ Inactive';
-            detectionCountEl.textContent = '0';
+            detectionStatus.textContent = 'Camera stopped';
             
             cameraState.isActive = false;
-            cameraState.detectionCount = 0;
-            
             showToast('⏹ Camera stopped');
-            log('✅ Camera stopped successfully');
         }
 
-        function cleanupCamera() {
-            if (cameraState.stream) {
-                cameraState.stream.getTracks().forEach(function(track) {
-                    track.stop();
-                });
-                cameraState.stream = null;
+        // ========================================
+        // DETECTION FUNCTION
+        // ========================================
+        async function captureAndDetect() {
+            if (!cameraState.isActive) {
+                showToast('❌ Camera not active');
+                return;
             }
-            
-            startBtn.disabled = false;
-            startBtn.textContent = '▶ Start Camera';
-            cameraState.isActive = false;
-        }
 
-        // ========================================
-        // DETECTION FUNCTIONS
-        // ========================================
-        
-        function startDetectionLoop() {
-            log('Starting detection loop...');
-            
-            cameraState.detectionInterval = setInterval(function() {
-                if (!cameraState.isActive || videoElement.paused || videoElement.ended) {
-                    return;
-                }
-                
-                processFrame();
-                
-            }, 300); // Every 300ms
-        }
-
-        async function processFrame() {
             try {
-                // Draw video frame to canvas
-                ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                log('📸 Capturing and detecting...');
                 
-                // Convert to base64
-                var frameData = canvasElement.toDataURL('image/jpeg', 0.7);
+                // Disable button during processing
+                detectBtn.disabled = true;
+                detectBtn.textContent = '⏳ Processing...';
+                detectionStatus.textContent = '⏳ Processing...';
+                spinner.style.display = 'block';
+                detectionResults.innerHTML = '';
+                
+                // Create canvas and capture frame
+                var canvas = document.createElement('canvas');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(videoElement, 0, 0);
+                
+                // Convert to blob
+                var blob = await new Promise(function(resolve) {
+                    canvas.toBlob(resolve, 'image/jpeg', 0.9);
+                });
+                
+                log('✅ Frame captured, sending to server...');
                 
                 // Send to server
-                var response = await fetch('/detect_frame', {
+                var formData = new FormData();
+                formData.append('image', blob, 'snapshot.jpg');
+                
+                var response = await fetch('/detect_image', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ frame: frameData })
+                    body: formData
                 });
                 
                 if (!response.ok) {
@@ -474,118 +469,62 @@
                 
                 var data = await response.json();
                 
-                if (data.status === 'success' && data.detections) {
-                    // Redraw frame
-                    ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                log('✅ Detection complete!');
+                
+                if (data.status === 'success') {
+                    // Show result image
+                    resultImage.src = data.image;
+                    resultImage.style.display = 'block';
+                    resultPlaceholder.style.display = 'none';
                     
-                    // Draw detections
-                    drawDetections(data.detections);
+                    // Display detection results
+                    displayResults(data.detections);
                     
-                    // Update count
-                    cameraState.detectionCount = data.detections.length;
-                    detectionCountEl.textContent = cameraState.detectionCount;
+                    showToast('✅ Detection complete!');
+                    detectionStatus.textContent = '✅ Detection complete';
+                    
+                } else {
+                    throw new Error(data.message || 'Detection failed');
                 }
                 
             } catch (error) {
-                console.error('Detection error:', error);
+                log('❌ Detection error: ' + error.message);
+                showToast('❌ Detection failed: ' + error.message);
+                detectionStatus.textContent = '❌ Detection failed';
+                
+            } finally {
+                // Re-enable button
+                detectBtn.disabled = false;
+                detectBtn.textContent = '📸 Capture & Detect Mask';
+                spinner.style.display = 'none';
             }
         }
 
-        function drawDetections(detections) {
+        function displayResults(detections) {
             if (!detections || detections.length === 0) {
+                detectionResults.innerHTML = '<div class="detection-result" style="display: block; background: #fef3c7; border-left-color: #f59e0b;"><h3>⚠️ No Faces Detected</h3><p>Try again with face visible in frame</p></div>';
                 return;
             }
             
-            detections.forEach(function(det) {
-                var color = det.label === 'Mask' ? '#10b981' : '#ef4444';
-                var box = det.box;
-                
-                var x = box[0];
-                var y = box[1];
-                var width = box[2] - box[0];
-                var height = box[3] - box[1];
-                
-                // Draw rectangle
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 3;
-                ctx.strokeRect(x, y, width, height);
-                
-                // Draw label
-                var label = det.label + ': ' + det.confidence.toFixed(1) + '%';
-                ctx.font = 'bold 16px Arial';
-                var textWidth = ctx.measureText(label).width;
-                
-                // Background
-                ctx.fillStyle = color;
-                ctx.fillRect(x, y - 28, textWidth + 12, 28);
-                
-                // Text
-                ctx.fillStyle = 'white';
-                ctx.fillText(label, x + 6, y - 8);
+            var html = '<div class="detection-result ' + (detections[0].label === 'Mask' ? 'mask' : 'no-mask') + '" style="display: block;">';
+            html += '<h3>' + (detections.length === 1 ? '1 Face Detected' : detections.length + ' Faces Detected') + '</h3>';
+            html += '<ul class="detection-list">';
+            
+            detections.forEach(function(det, index) {
+                var emoji = det.label === 'Mask' ? '✅' : '❌';
+                html += '<li>' + emoji + ' <strong>Face ' + (index + 1) + ':</strong> ' + det.label + ' (' + det.confidence.toFixed(1) + '% confident)</li>';
             });
-        }
-
-        // ========================================
-        // CAPTURE FUNCTION
-        // ========================================
-        
-        async function handleCapture() {
-            if (!cameraState.isActive || !cameraState.stream) {
-                showToast('❌ Camera is not active');
-                return;
-            }
             
-            try {
-                log('Capturing image...');
-                
-                var tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvasElement.width;
-                tempCanvas.height = canvasElement.height;
-                var tempCtx = tempCanvas.getContext('2d');
-                
-                tempCtx.drawImage(canvasElement, 0, 0);
-                
-                tempCanvas.toBlob(async function(blob) {
-                    if (!blob) {
-                        throw new Error('Failed to create image blob');
-                    }
-                    
-                    var formData = new FormData();
-                    formData.append('image', blob, 'capture.jpg');
-                    
-                    var response = await fetch('/detect_image', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Server error: ' + response.status);
-                    }
-                    
-                    var data = await response.json();
-                    
-                    if (data.status === 'success') {
-                        showToast('📸 Captured: ' + data.filename);
-                        log('✅ Image saved: ' + data.filename);
-                    } else {
-                        throw new Error(data.message || 'Capture failed');
-                    }
-                    
-                }, 'image/jpeg', 0.9);
-                
-            } catch (error) {
-                log('❌ Capture error: ' + error.message);
-                showToast('❌ Capture failed: ' + error.message);
-            }
+            html += '</ul></div>';
+            
+            detectionResults.innerHTML = html;
         }
 
         // ========================================
         // PAGE LOAD
         // ========================================
-        
         window.addEventListener('load', function() {
-            log('Page loaded, ready for camera access');
-            log('Browser: ' + navigator.userAgent);
+            log('🎭 Face Mask Detection ready!');
         });
     </script>
 </body>
