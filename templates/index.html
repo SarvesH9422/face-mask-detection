@@ -35,11 +35,6 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
         .main-grid {
             display: grid;
             grid-template-columns: 1fr 350px;
@@ -58,13 +53,22 @@
             background: #000;
             border-radius: 10px;
             overflow: hidden;
-            aspect-ratio: 16/9;
+            aspect-ratio: 4/3;
         }
 
-        #videoFeed {
+        #videoElement {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            display: none;
+        }
+
+        #canvasElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
 
         .placeholder {
@@ -73,14 +77,8 @@
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
-            color: #666;
-        }
-
-        .placeholder svg {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 15px;
-            opacity: 0.5;
+            color: #aaa;
+            font-size: 1.2rem;
         }
 
         .controls {
@@ -98,13 +96,9 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
@@ -121,11 +115,6 @@
 
         .btn-info {
             background: #3b82f6;
-            color: white;
-        }
-
-        .btn-secondary {
-            background: #6b7280;
             color: white;
         }
 
@@ -165,75 +154,6 @@
             padding: 10px;
             background: #f3f4f6;
             border-radius: 8px;
-        }
-
-        .stat-label {
-            color: #6b7280;
-            font-weight: 600;
-        }
-
-        .stat-value {
-            color: #111827;
-            font-weight: 700;
-        }
-
-        .captures-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .capture-item {
-            position: relative;
-            border-radius: 8px;
-            overflow: hidden;
-            aspect-ratio: 4/3;
-        }
-
-        .capture-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .capture-item .delete-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(239, 68, 68, 0.9);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-
-        .status-active {
-            background: #10b981;
-            animation: pulse 2s infinite;
-        }
-
-        .status-inactive {
-            background: #ef4444;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
         }
 
         .toast {
@@ -278,28 +198,23 @@
             <!-- Video Section -->
             <div class="video-section">
                 <div class="video-container">
-                    <img id="videoFeed" style="display:none;">
+                    <video id="videoElement" autoplay playsinline></video>
+                    <canvas id="canvasElement"></canvas>
                     <div class="placeholder" id="placeholder">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                        </svg>
-                        <p>Click "Start Camera" to begin detection</p>
+                        <p>📷 Click "Start Camera" to begin detection</p>
                     </div>
                 </div>
 
                 <!-- Controls -->
                 <div class="controls">
-                    <button class="btn btn-primary" id="startBtn" onclick="startCamera()">
+                    <button class="btn btn-primary" id="startBtn" onclick="handleStartCamera()">
                         ▶ Start Camera
                     </button>
-                    <button class="btn btn-danger" id="stopBtn" onclick="stopCamera()" disabled>
+                    <button class="btn btn-danger" id="stopBtn" onclick="handleStopCamera()" disabled>
                         ⏹ Stop Camera
                     </button>
-                    <button class="btn btn-info" id="captureBtn" onclick="captureImage()" disabled>
+                    <button class="btn btn-info" id="captureBtn" onclick="handleCapture()" disabled>
                         📸 Capture
-                    </button>
-                    <button class="btn btn-secondary" id="toggleBtn" onclick="toggleDetection()">
-                        🔄 Toggle Detection
                     </button>
                 </div>
             </div>
@@ -311,28 +226,13 @@
                     <h3 class="card-title">Status</h3>
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <span class="stat-label">Camera</span>
-                            <span class="stat-value">
-                                <span class="status-indicator status-inactive" id="cameraStatus"></span>
-                                <span id="cameraText">Inactive</span>
-                            </span>
+                            <span>Camera</span>
+                            <span id="cameraStatus">⏸️ Inactive</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Detection</span>
-                            <span class="stat-value" id="detectionStatus">Enabled</span>
+                            <span>Detections</span>
+                            <span id="detectionCount">0</span>
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Captures</span>
-                            <span class="stat-value" id="captureCount">0</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Captures Card -->
-                <div class="card">
-                    <h3 class="card-title">Recent Captures</h3>
-                    <div class="captures-grid" id="capturesGrid">
-                        <p style="text-align:center; color:#999; grid-column: 1/-1;">No captures yet</p>
                     </div>
                 </div>
             </div>
@@ -343,326 +243,350 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        let cameraActive = false;
-        let detectionEnabled = true;
+        // ========================================
+        // GLOBAL VARIABLES - DECLARE ALL AT TOP
+        // ========================================
+        
+        var cameraState = {
+            stream: null,
+            detectionInterval: null,
+            isActive: false,
+            detectionCount: 0
+        };
 
-        function showToast(message, duration = 3000) {
-            const toast = document.getElementById('toast');
+        // Get DOM elements
+        var videoElement = document.getElementById('videoElement');
+        var canvasElement = document.getElementById('canvasElement');
+        var ctx = canvasElement.getContext('2d');
+        var placeholder = document.getElementById('placeholder');
+        var startBtn = document.getElementById('startBtn');
+        var stopBtn = document.getElementById('stopBtn');
+        var captureBtn = document.getElementById('captureBtn');
+        var cameraStatus = document.getElementById('cameraStatus');
+        var detectionCountEl = document.getElementById('detectionCount');
+
+        // ========================================
+        // UTILITY FUNCTIONS
+        // ========================================
+        
+        function showToast(message, duration) {
+            duration = duration || 3000;
+            var toast = document.getElementById('toast');
             toast.textContent = message;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
+            setTimeout(function() {
+                toast.classList.remove('show');
+            }, duration);
         }
 
-        async function startCamera() {
-            try {
-                const response = await fetch('/start_camera', { method: 'POST' });
-                const data = await response.json();
+        function log(message) {
+            console.log('[' + new Date().toLocaleTimeString() + '] ' + message);
+        }
 
-                if (data.status === 'success') {
-                    cameraActive = true;
-                    document.getElementById('videoFeed').src = '/video_feed?' + new Date().getTime();
-                    document.getElementById('videoFeed').style.display = 'block';
-                    document.getElementById('placeholder').style.display = 'none';
-
-                    document.getElementById('startBtn').disabled = true;
-                    document.getElementById('stopBtn').disabled = false;
-                    document.getElementById('captureBtn').disabled = false;
-
-                    document.getElementById('cameraStatus').className = 'status-indicator status-active';
-                    document.getElementById('cameraText').textContent = 'Active';
-
-                    showToast('✅ Camera started successfully');
-                } else {
-                    showToast('❌ ' + data.message);
-                }
-            } catch (error) {
-                showToast('❌ Error: ' + error.message);
+        // ========================================
+        // CAMERA FUNCTIONS
+        // ========================================
+        
+        function handleStartCamera() {
+            log('Start camera button clicked');
+            
+            if (cameraState.isActive) {
+                showToast('⚠️ Camera is already active');
+                return;
             }
+
+            startBtn.disabled = true;
+            startBtn.textContent = '⏳ Starting...';
+            
+            startCameraAsync();
         }
 
-        async function stopCamera() {
+        async function startCameraAsync() {
             try {
-                const response = await fetch('/stop_camera', { method: 'POST' });
-                const data = await response.json();
-
-                cameraActive = false;
-                document.getElementById('videoFeed').style.display = 'none';
-                document.getElementById('placeholder').style.display = 'block';
-
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-                document.getElementById('captureBtn').disabled = true;
-
-                document.getElementById('cameraStatus').className = 'status-indicator status-inactive';
-                document.getElementById('cameraText').textContent = 'Inactive';
-
-                showToast('⏹ Camera stopped');
-            } catch (error) {
-                showToast('❌ Error: ' + error.message);
-            }
-        }
-
-        async function captureImage() {
-            try {
-                const response = await fetch('/capture_image', { method: 'POST' });
-                const data = await response.json();
-
-                if (data.status === 'success') {
-                    showToast('📸 Image captured: ' + data.filename);
-                    loadCaptures();
-                } else {
-                    showToast('❌ ' + data.message);
-                }
-            } catch (error) {
-                showToast('❌ Error: ' + error.message);
-            }
-        }
-
-        async function toggleDetection() {
-            try {
-                const response = await fetch('/toggle_detection', { method: 'POST' });
-                const data = await response.json();
-
-                detectionEnabled = data.detection_enabled;
-                document.getElementById('detectionStatus').textContent = detectionEnabled ? 'Enabled' : 'Disabled';
-                showToast(detectionEnabled ? '✅ Detection enabled' : '⏸ Detection paused');
-            } catch (error) {
-                showToast('❌ Error: ' + error.message);
-            }
-        }
-
-        async function loadCaptures() {
-            try {
-                const response = await fetch('/get_captures');
-                const data = await response.json();
-                const grid = document.getElementById('capturesGrid');
-
-                document.getElementById('captureCount').textContent = data.captures.length;
-
-                if (data.captures.length === 0) {
-                    grid.innerHTML = '<p style="text-align:center; color:#999; grid-column: 1/-1;">No captures yet</p>';
-                    return;
-                }
-
-                grid.innerHTML = data.captures.slice(0, 6).map(filename => `
-                    <div class="capture-item">
-                        <img src="/captures/${filename}" alt="Capture">
-                        <button class="delete-btn" onclick="deleteCapture('${filename}')">×</button>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading captures:', error);
-            }
-        }
-
-        async function deleteCapture(filename) {
-            try {
-                const response = await fetch('/delete_capture/' + filename, { method: 'DELETE' });
-                const data = await response.json();
-
-                if (data.status === 'success') {
-                    showToast('🗑 Image deleted');
-                    loadCaptures();
-                }
-            } catch (error) {
-                showToast('❌ Error: ' + error.message);
-            }
-        }
-
-        // Load captures on page load
-        loadCaptures();
-
-        // Refresh captures every 10 seconds
-        setInterval(loadCaptures, 10000);
-    </script>
-
-<script>
-        // Global variables
-        let videoElement = document.getElementById('videoElement');
-        let canvasElement = document.getElementById('canvasElement');
-        let ctx = canvasElement.getContext('2d');
-        let stream = null;
-        let detectionInterval = null;
-        let detectionCount = 0;
-
-        function showToast(message, duration = 3000) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
-        }
-
-        async function startCamera() {
-            try {
-                // Request camera access
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
+                log('Requesting camera access...');
+                
+                // Request camera permission
+                var mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         width: { ideal: 640 },
                         height: { ideal: 480 },
                         facingMode: 'user'
-                    } 
+                    }
                 });
                 
-                // Set video source
-                videoElement.srcObject = stream;
+                log('✅ Camera access granted');
                 
-                // Wait for video to load metadata
-                videoElement.onloadedmetadata = () => {
-                    videoElement.play();
+                // Store stream in state object
+                cameraState.stream = mediaStream;
+                
+                // Set video source
+                videoElement.srcObject = mediaStream;
+                
+                // Wait for video to load
+                videoElement.onloadedmetadata = function() {
+                    log('Video metadata loaded');
                     
-                    // Setup canvas
-                    canvasElement.width = videoElement.videoWidth;
-                    canvasElement.height = videoElement.videoHeight;
-                    
-                    // Show video, hide placeholder
-                    videoElement.style.display = 'block';
-                    document.getElementById('placeholder').style.display = 'none';
-                    
-                    // Update UI
-                    document.getElementById('startBtn').disabled = true;
-                    document.getElementById('stopBtn').disabled = false;
-                    document.getElementById('captureBtn').disabled = false;
-                    document.getElementById('cameraStatus').textContent = 'Active';
-                    
-                    showToast('✅ Camera started successfully');
-                    
-                    // Start detection loop
-                    startDetection();
+                    videoElement.play().then(function() {
+                        log('✅ Video playing');
+                        
+                        // Setup canvas
+                        canvasElement.width = videoElement.videoWidth;
+                        canvasElement.height = videoElement.videoHeight;
+                        
+                        log('Canvas size: ' + canvasElement.width + 'x' + canvasElement.height);
+                        
+                        // Update UI
+                        videoElement.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        startBtn.disabled = true;
+                        startBtn.textContent = '▶ Start Camera';
+                        stopBtn.disabled = false;
+                        captureBtn.disabled = false;
+                        cameraStatus.textContent = '✅ Active';
+                        
+                        cameraState.isActive = true;
+                        
+                        showToast('✅ Camera started successfully');
+                        
+                        // Start detection
+                        startDetectionLoop();
+                        
+                    }).catch(function(err) {
+                        log('❌ Video play error: ' + err.message);
+                        showToast('❌ Failed to play video');
+                        cleanupCamera();
+                    });
                 };
                 
             } catch (error) {
-                console.error('Camera error:', error);
-                showToast('❌ Camera access denied: ' + error.message);
+                log('❌ Camera error: ' + error.name + ' - ' + error.message);
+                
+                var errorMsg = '';
+                if (error.name === 'NotAllowedError') {
+                    errorMsg = 'Camera permission denied. Please allow camera access and try again.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMsg = 'No camera found on this device.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMsg = 'Camera is being used by another application.';
+                } else {
+                    errorMsg = error.message || 'Failed to access camera';
+                }
+                
+                showToast('❌ ' + errorMsg, 5000);
+                cleanupCamera();
             }
         }
 
-        function stopCamera() {
-            // Stop detection
-            if (detectionInterval) {
-                clearInterval(detectionInterval);
-                detectionInterval = null;
+        function handleStopCamera() {
+            log('Stop camera button clicked');
+            stopCameraAndCleanup();
+        }
+
+        function stopCameraAndCleanup() {
+            log('Stopping camera...');
+            
+            // Stop detection loop
+            if (cameraState.detectionInterval) {
+                clearInterval(cameraState.detectionInterval);
+                cameraState.detectionInterval = null;
             }
             
-            // Stop video stream
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
+            // Stop media stream
+            if (cameraState.stream) {
+                cameraState.stream.getTracks().forEach(function(track) {
+                    track.stop();
+                    log('Stopped track: ' + track.kind);
+                });
+                cameraState.stream = null;
             }
             
             // Reset video
             videoElement.srcObject = null;
             videoElement.style.display = 'none';
-            document.getElementById('placeholder').style.display = 'block';
+            placeholder.style.display = 'block';
             
             // Clear canvas
             ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             
             // Update UI
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
-            document.getElementById('captureBtn').disabled = true;
-            document.getElementById('cameraStatus').textContent = 'Inactive';
+            startBtn.disabled = false;
+            startBtn.textContent = '▶ Start Camera';
+            stopBtn.disabled = true;
+            captureBtn.disabled = true;
+            cameraStatus.textContent = '⏸️ Inactive';
+            detectionCountEl.textContent = '0';
+            
+            cameraState.isActive = false;
+            cameraState.detectionCount = 0;
             
             showToast('⏹ Camera stopped');
+            log('✅ Camera stopped successfully');
         }
 
-        function startDetection() {
-            detectionInterval = setInterval(async () => {
-                if (!videoElement.paused && !videoElement.ended) {
-                    // Draw current frame to canvas
+        function cleanupCamera() {
+            if (cameraState.stream) {
+                cameraState.stream.getTracks().forEach(function(track) {
+                    track.stop();
+                });
+                cameraState.stream = null;
+            }
+            
+            startBtn.disabled = false;
+            startBtn.textContent = '▶ Start Camera';
+            cameraState.isActive = false;
+        }
+
+        // ========================================
+        // DETECTION FUNCTIONS
+        // ========================================
+        
+        function startDetectionLoop() {
+            log('Starting detection loop...');
+            
+            cameraState.detectionInterval = setInterval(function() {
+                if (!cameraState.isActive || videoElement.paused || videoElement.ended) {
+                    return;
+                }
+                
+                processFrame();
+                
+            }, 300); // Every 300ms
+        }
+
+        async function processFrame() {
+            try {
+                // Draw video frame to canvas
+                ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                
+                // Convert to base64
+                var frameData = canvasElement.toDataURL('image/jpeg', 0.7);
+                
+                // Send to server
+                var response = await fetch('/detect_frame', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frame: frameData })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Server error: ' + response.status);
+                }
+                
+                var data = await response.json();
+                
+                if (data.status === 'success' && data.detections) {
+                    // Redraw frame
                     ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
                     
-                    // Get frame as base64
-                    const frameData = canvasElement.toDataURL('image/jpeg', 0.8);
+                    // Draw detections
+                    drawDetections(data.detections);
                     
-                    // Send to server for detection
-                    try {
-                        const response = await fetch('/detect_frame', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ frame: frameData })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (data.status === 'success' && data.detections) {
-                            // Clear canvas
-                            ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-                            
-                            // Draw detections
-                            drawDetections(data.detections);
-                            
-                            // Update count
-                            detectionCount = data.detections.length;
-                            document.getElementById('detectionCount').textContent = detectionCount;
-                        }
-                    } catch (error) {
-                        console.error('Detection error:', error);
-                    }
+                    // Update count
+                    cameraState.detectionCount = data.detections.length;
+                    detectionCountEl.textContent = cameraState.detectionCount;
                 }
-            }, 200); // 5 FPS (adjust as needed)
+                
+            } catch (error) {
+                console.error('Detection error:', error);
+            }
         }
 
         function drawDetections(detections) {
-            detections.forEach(det => {
-                const color = det.label === 'Mask' ? '#10b981' : '#ef4444';
-                const box = det.box;
+            if (!detections || detections.length === 0) {
+                return;
+            }
+            
+            detections.forEach(function(det) {
+                var color = det.label === 'Mask' ? '#10b981' : '#ef4444';
+                var box = det.box;
+                
+                var x = box[0];
+                var y = box[1];
+                var width = box[2] - box[0];
+                var height = box[3] - box[1];
                 
                 // Draw rectangle
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 3;
-                ctx.strokeRect(box[0], box[1], box[2] - box[0], box[3] - box[1]);
+                ctx.strokeRect(x, y, width, height);
                 
                 // Draw label
-                const label = `${det.label}: ${det.confidence.toFixed(1)}%`;
-                ctx.fillStyle = color;
+                var label = det.label + ': ' + det.confidence.toFixed(1) + '%';
                 ctx.font = 'bold 16px Arial';
+                var textWidth = ctx.measureText(label).width;
                 
-                // Background for text
-                const textWidth = ctx.measureText(label).width;
-                ctx.fillRect(box[0], box[1] - 25, textWidth + 10, 25);
+                // Background
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y - 28, textWidth + 12, 28);
                 
                 // Text
                 ctx.fillStyle = 'white';
-                ctx.fillText(label, box[0] + 5, box[1] - 7);
+                ctx.fillText(label, x + 6, y - 8);
             });
         }
 
-        async function captureImage() {
+        // ========================================
+        // CAPTURE FUNCTION
+        // ========================================
+        
+        async function handleCapture() {
+            if (!cameraState.isActive || !cameraState.stream) {
+                showToast('❌ Camera is not active');
+                return;
+            }
+            
             try {
-                // Draw current frame with detections
-                const captureCanvas = document.createElement('canvas');
-                captureCanvas.width = canvasElement.width;
-                captureCanvas.height = canvasElement.height;
-                const captureCtx = captureCanvas.getContext('2d');
+                log('Capturing image...');
                 
-                // Copy current canvas (with detections)
-                captureCtx.drawImage(canvasElement, 0, 0);
+                var tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvasElement.width;
+                tempCanvas.height = canvasElement.height;
+                var tempCtx = tempCanvas.getContext('2d');
                 
-                // Convert to blob
-                captureCanvas.toBlob(async (blob) => {
-                    const formData = new FormData();
+                tempCtx.drawImage(canvasElement, 0, 0);
+                
+                tempCanvas.toBlob(async function(blob) {
+                    if (!blob) {
+                        throw new Error('Failed to create image blob');
+                    }
+                    
+                    var formData = new FormData();
                     formData.append('image', blob, 'capture.jpg');
                     
-                    const response = await fetch('/detect_image', {
+                    var response = await fetch('/detect_image', {
                         method: 'POST',
                         body: formData
                     });
                     
-                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error('Server error: ' + response.status);
+                    }
+                    
+                    var data = await response.json();
                     
                     if (data.status === 'success') {
-                        showToast('📸 Image captured: ' + data.filename);
+                        showToast('📸 Captured: ' + data.filename);
+                        log('✅ Image saved: ' + data.filename);
+                    } else {
+                        throw new Error(data.message || 'Capture failed');
                     }
+                    
                 }, 'image/jpeg', 0.9);
                 
             } catch (error) {
-                console.error('Capture error:', error);
-                showToast('❌ Failed to capture image');
+                log('❌ Capture error: ' + error.message);
+                showToast('❌ Capture failed: ' + error.message);
             }
         }
-    </script>
 
-    
+        // ========================================
+        // PAGE LOAD
+        // ========================================
+        
+        window.addEventListener('load', function() {
+            log('Page loaded, ready for camera access');
+            log('Browser: ' + navigator.userAgent);
+        });
+    </script>
 </body>
 </html>
